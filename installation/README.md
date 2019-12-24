@@ -14,8 +14,7 @@ Navidate to project folder. With data/, installation/ example/ etc..
 
 ## For jupiter notebook
 - docker run --privileged -it -v ${pwd}:/src -v /tmp/.X11-unix:/tmp/.X11-unix:ro -e DISPLAY=$DISPLAY -p 8888:8888 48cfu_nanodegree
-- cd ..
-- ./run.sh
+- ../run.sh
 
 
 ## TENSOR FLOW
