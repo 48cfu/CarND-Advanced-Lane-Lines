@@ -293,13 +293,35 @@ for fname in images:
         2#thickness
     ) 
 
+
+    '''
+    POsition vehicle with respect to center
+    '''
+    xm_per_pix = 3.7/700 # meters per pixel in x dimension
+    xmin = 0
+    xmax = result.shape[1]
+    lane_left = left_fitx[0]
+    lane_right = right_fitx[0]
+    offset = (xmax - xmin) / 2 - (lane_right - lane_left)/2
+
+    relative_position = offset * xm_per_pix
+    result = cv2.putText(
+            result, #numpy array on which text is written
+            'Vehicle relative position: ' + str((float("{0:.2f}".format(relative_position)))) + 'm', #text
+            (10, 90), #position at which writing has to start
+            cv2.FONT_HERSHEY_COMPLEX_SMALL, #font family
+            1, #font scale
+            (255, 255, 255), #font color
+            2#thickness
+        ) 
+
+
     # Show and save result
     fig_handle = fig4.add_subplot(8, 3, 3 * i + 3)
     cv2.imwrite('../data/test_images/saved_from_algorithm/final_lane_projection' + str(i + 1) + '.jpg',  cv2.cvtColor(result, cv2.COLOR_RGB2BGR))
     print('Saved intermediate ../data/test_images/saved_from_algorithm/final_lane_projection' + str(i + 1) + '.jpg')
     plt.imshow(result)
 
-    
     i += 1
     #if i >= 1:
     #    break
