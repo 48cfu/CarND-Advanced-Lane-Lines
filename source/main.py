@@ -233,14 +233,14 @@ for fname in images:
     text_warp = np.dstack((warp_zero.T, warp_zero.T, warp_zero.T))
     position = ((int) (text_warp.shape[1]/2 - 268/2), (int) (text_warp.shape[0]/2 - 36/2))
     position = ((int) (text_warp.shape[1]/2 - 268/2), 0)
-    position = (0, 700)
+    position = (10, 700)
     #print(position)
     text_warp = cv2.putText(
         text_warp, #numpy array on which text is written
         "48cfu", #text
         position, #position at which writing has to start
         cv2.FONT_HERSHEY_COMPLEX_SMALL, #font family
-        9, #font scale
+        4, #font scale
         (255, 255, 255), #font color
         10 #thickness
         ) 
@@ -301,7 +301,7 @@ for fname in images:
 
     
     i += 1
-    #if i >= 2:
+    #if i >= 1:
     #    break
 
 
