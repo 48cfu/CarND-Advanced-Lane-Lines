@@ -118,45 +118,51 @@ class Camera():
             thresh_sobel_x = (20, 100), thresh_dir_gradient = (0, np.pi/2), thresh_magnitude = (0, 255)):
     # Convert to HLS color space and separate the S channel
         # Note: img is the undistorted image
+        cp_img = np.copy(img)
         hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
         s_channel = hls[:,:,2]
+        l_channel = hls[:,:,1]
 
         # Grayscale image
         # NOTE: we already saw that standard grayscaling lost color information for the lane lines
         # Explore gradients in other colors spaces / color channels to see what might work better
-        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        gray = cv2.cvtColor(cp_img, cv2.COLOR_RGB2GRAY)
 
         # Sobel x & threshold x gradient
-        sxbinary = self.sobel_threshold(gray, 'x', sobel_kernel, thresh_sobel_x)
+        #sobel_binary = self.sobel_threshold(gray, 'x', sobel_kernel, thresh_sobel_x)
+        sobel_binary = self.sobel_threshold(l_channel, 'x', sobel_kernel, thresh_sobel_x)
 
         # Threshold color channel
         s_binary = np.zeros_like(s_channel)
         s_binary[(s_channel >= thresh_color_s_channel[0]) & (s_channel <= thresh_color_s_channel[1])] = 1
 
+        thresh_l = (130, 255)
+        l_binary = np.zeros_like(l_channel)
+        l_binary[(l_channel > thresh_l[0]) & (l_channel <= thresh_l[1])] = 1
+        
         # Stack each channel to view their individual contributions in green and blue respectively
         # This returns a stack of the two binary images, whose components you can see as different colors
-        color_binary = np.dstack(( np.zeros_like(sxbinary), sxbinary, s_binary)) * 255
+        color_binary = np.dstack(( np.zeros_like(sobel_binary), sobel_binary, s_binary)) * 255
 
         # gradient Direction 
         dir_binary = self.dir_threshold(gray, sobel_kernel, thresh_dir_gradient)
         mag_binary = self.mag_threshold(gray, sobel_kernel, thresh_magnitude)
 
         # Combine the two binary thresholds
-        combined_binary = np.zeros_like(sxbinary)
-        combined_binary[(s_binary == 1) | (sxbinary == 1) | ((dir_binary == 1) & (mag_binary == 1))] = 1
+        combined_binary = np.zeros_like(sobel_binary)
+        #combined_binary[((s_binary == 1) | (sobel_binary == 1)) & l_binary == 1 &  ((dir_binary == 1) & (mag_binary == 1))] = 1
+        combined_binary[((s_binary == 1) | (sobel_binary == 1)) & l_binary == 1 &  (dir_binary == 1)] = 1
 
         return combined_binary, color_binary
         
     # Define a function that takes an image, number of x and y points, 
     # camera matrix and distortion coefficients and return the birdeye-view
-    def corners_unwarp(self, img, corners_source, corners_destination):
+    def corners_unwarp(self, img_undistorted, corners_source, corners_destination):
         # Use the OpenCV undistort() function to remove distortion
-        # undist = cv2.undistort(img, self.mtx, self.dist, None, self.mtx)
-        undist = self.undistort(np.copy(img))
-        img_size = (img.shape[1], img.shape[0])
+        img_size = (img_undistorted.shape[1], img_undistorted.shape[0])
         self.perspectiveM = cv2.getPerspectiveTransform(corners_source, corners_destination)
         # Warp the image using OpenCV warpPerspective()
-        warped = cv2.warpPerspective(undist, self.perspectiveM, img_size)
+        warped = cv2.warpPerspective(img_undistorted, self.perspectiveM, img_size)
         # Return the resulting image and matrix
         return warped, self.perspectiveM
         #return img, img_size
@@ -227,12 +233,12 @@ class Camera():
                 rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
 
         # Concatenate the arrays of indices (previously was a list of lists of pixels)
-        try:
-            left_lane_inds = np.concatenate(left_lane_inds)
-            right_lane_inds = np.concatenate(right_lane_inds)
-        except ValueError:
+        #try:
+        left_lane_inds = np.concatenate(left_lane_inds)
+        right_lane_inds = np.concatenate(right_lane_inds)
+        #except ValueError:
             # Avoids an error if the above is not implemented fully
-            pass
+        #    pass
 
         # Extract left and right line pixel positions
         leftx = nonzerox[left_lane_inds]
@@ -247,26 +253,30 @@ class Camera():
         leftx, lefty, rightx, righty, out_img = self.identify_lane_lines_once(binary_warped)
 
         # Fit a second order polynomial to each using `np.polyfit`
-        left_fit = np.polyfit(lefty, leftx, 2)
-        right_fit = np.polyfit(righty, rightx, 2)
+
 
         # Generate x and y values for plotting
         ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
         left_detected = True
         right_detected = True
         try:
+            left_fit = np.polyfit(lefty, leftx, 2)
             left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
         except TypeError:
             # Avoids an error if `left` and `right_fit` are still none or incorrect
             #print('The function failed to fit a line!')
             left_detected = False
+            left_fit = [10, 20, 0]
             left_fitx = 1*ploty**2 + 1*ploty
+        
         try:
+            right_fit = np.polyfit(righty, rightx, 2)
             right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
         except TypeError:
             # Avoids an error if `left` and `right_fit` are still none or incorrect
             #print('The function failed to fit a line!')
             right_detected = False
+            right_fit = [10, 20, 0]
             right_fitx = 1*ploty**2 + 1*ploty
 
         ## Visualization ##
@@ -320,9 +330,17 @@ class Camera():
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
 
+        right_detected = True
+        left_detected = True
+
         # Fit new polynomials
-        left_fitx, right_fitx, ploty = self.fit_poly(binary_warped.shape, leftx, lefty, rightx, righty)
-        
+        try:
+            left_fitx, right_fitx, ploty = self.fit_poly(binary_warped.shape, leftx, lefty, rightx, righty)
+        except TypeError:
+            # Avoids an error if `left` and `right_fit` are still none or incorrect
+            #print('The function failed to fit a line!')
+            right_detected = False
+            left_detected = False
         ## Visualization ##
         # Create an image to draw on and an image to show the selection window
         out_img = np.dstack((binary_warped, binary_warped, binary_warped))*255
@@ -348,8 +366,9 @@ class Camera():
         result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
         
         # Plot the polynomial lines onto the image
-        plt.plot(left_fitx, ploty, color='yellow')
-        plt.plot(right_fitx, ploty, color='yellow')
+        #plt.plot(left_fitx, ploty, color='yellow')
+        #plt.plot(right_fitx, ploty, color='yellow')
         ## End visualization steps ##
     
-        return result
+        #return result
+        return left_detected, right_detected, leftx, lefty, rightx, righty, ploty, left_fit, right_fit, left_fitx, right_fitx, result

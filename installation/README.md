@@ -29,3 +29,4 @@ To deactivate an active environment, use:
 
 ## HELP
 - https://stackoverflow.com/questions/35595766/matplotlib-line-magic-causes-syntaxerror-in-python-script
+- ADD TO Dockerfile: conda install -c conda-forge ffmpeg
