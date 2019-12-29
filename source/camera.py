@@ -165,7 +165,6 @@ class Camera():
         warped = cv2.warpPerspective(img_undistorted, self.perspectiveM, img_size)
         # Return the resulting image and matrix
         return warped, self.perspectiveM
-        #return img, img_size
 
     
     def identify_lane_lines_once(self, binary_warped, nwindows = 9, margin = 100, minpix = 50):

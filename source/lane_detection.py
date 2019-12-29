@@ -89,6 +89,12 @@ class LaneDetection():
         binary_output = np.zeros_like(scaled_sobel)
         binary_output[(scaled_sobel >= thresh_min) & (scaled_sobel <= thresh_max)] = 1
         return binary_output
+
+    def thresholding_pipeline(self, img_undistorted):
+        combined_binary, color_binary = self.camera.binary_from_combined_thresholds(
+            img_undistorted, self.sobel_kernel, self.thresh_color_s_channel, self.thresh_sobel_x, 
+            self.thresh_dir_gradient, self.thresh_magnitude)
+        return combined_binary
         
     def process_image(self, img_original):
         ''' 
@@ -109,31 +115,16 @@ class LaneDetection():
         '''
         offset1 = 350
         offset2 = 520
-        
         big_x = 1230
         small_x = 250
+
+        corners_source = np.float32([[small_x, 720], [small_x + offset1, 450], [big_x - offset2, 450], [big_x, 720]])
+        corners_destination = np.float32([[small_x, 720], [small_x, 0], [big_x, 0], [big_x, 720]])
+        print(corners_source)
+        print(corners_destination)
         cp_img = np.copy(img_undistorted)
 
         img_size = (img_undistorted.shape[1], img_undistorted.shape[0])
-        total_columns = img_size[0]
-        total_rows = img_size[1]
-        last_row = total_rows - 1
-        last_column = total_columns - 1
-
-        central_column = int(total_columns/2)
-        central_row = int(total_rows/2)
-
-        src = np.float32([[central_column - 92, int(total_rows*0.63)], [central_column + 92, int(total_rows*0.63)],    
-            [central_column - 860, last_row], [central_column + 860, last_row]])
-
-        dst = np.float32([[0, 0],[last_column, 0], [0, last_row], [last_column, last_row]])
-
-        #corners_source = np.float32([[small_x, 720], [small_x + offset1, 450], [big_x - offset2, 450], [big_x, 720]])
-        #corners_destination = np.float32([[small_x, 720], [small_x, 0], [big_x, 0], [big_x, 720]])
-
-        corners_source = src
-        corners_destination = dst
-
         #warped_img, M = self.camera.corners_unwarp(cp_img, corners_source, corners_destination)
 
         '''
@@ -266,11 +257,6 @@ class LaneDetection():
         POsition vehicle with respect to center
         '''
         xm_per_pix = 3.7/700 # meters per pixel in x dimension
-        xmin = 0
-        xmax = result.shape[1]
-        lane_left = left_fitx[0]
-        lane_right = right_fitx[0]
-
         mid_lane = 0.5 * (self.line_left.best_fit[0]*img_undistorted.shape[0]**2 + self.line_left.best_fit[1]*img_undistorted.shape[0] + self.line_left.best_fit[2]) + 0.5*(self.line_right.best_fit[0]*img_undistorted.shape[0]**2 + self.line_right.best_fit[1]*img_undistorted.shape[0] + self.line_right.best_fit[2])
         offset = mid_lane - 0.5 * img_undistorted.shape[1]
         relative_position = offset * xm_per_pix
